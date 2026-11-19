@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+/* Talks to the Google Apps Script server without using the visitor's Google
+   accounts, so it works for people signed in to several Google accounts. */
+var API_URL = 'https://script.google.com/macros/s/AKfycbzqGk16m8KnIU8u54iYqoGK-qFGZslIy4D2ccnaMedHp4koyn6BEDgaoOvXX-QxwlrN/exec';
+window.google = { script: {} };
+Object.defineProperty(window.google.script, 'run', { get: function () {
+  var ok = null, bad = null;
+  var runner = new Proxy({}, { get: function (t, name) {
+    if (name === 'withSuccessHandler') return function (f) { ok = f; return runner; };
+    if (name === 'withFailureHandler') return function (f) { bad = f; return runner; };
+    return function () {
+      var args = Array.prototype.slice.call(arguments), s = ok, b = bad;
+      fetch(API_URL, { method: 'POST', body: JSON.stringify({ fn: name, args: args }), credentials: 'omit', redirect: 'follow' })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (x) { if (x && x.__error) throw new Error(x.__error); if (s) s(x); })
+        .catch(function (e) { if (b) b(e); });
+    };
+  } });
+  return runner;
+} });
+</script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Pinyon+Script&display=swap" rel="stylesheet">
+<style>
+  /* ===== Colour palette — change these to restyle the whole site ===== */
+  :root {
+    --wine: #5e1424;          /* deep burgundy */
+    --wine-deep: #3b0a14;     /* darkest burgundy */
+    --wine-soft: #7a2537;
+    --gold: #b8955a;          /* antique gold */
+    --gold-light: #dcc28a;    /* bright gold for text on burgundy */
+    --gold-pale: #efe0bb;
+    --ivory: #f8f1e5;         /* champagne ivory */
+    --beige: #ecdfca;         /* soft warm beige */
+    --ink: #4a1220;           /* text on ivory */
+    --muted: #7d6257;
+    --ok: #4f6b3a;
+    --bad: #9a2b2b;
+    --serif: 'Cormorant Garamond', 'Times New Roman', Georgia, serif;
+    --caps: 'Cinzel', 'Times New Roman', Georgia, serif;
+    --script: 'Pinyon Script', 'Snell Roundhand', 'Apple Chancery', cursive;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; font-family: var(--serif); color: var(--ink); font-size: 18px; line-height: 1.5; overflow-x: hidden; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  [hidden] { display: none !important; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: .5em;
+    min-height: 50px; padding: 12px 26px; border-radius: 999px; cursor: pointer;
+    font-family: var(--caps); font-size: .82rem; letter-spacing: .16em; text-transform: uppercase;
+    text-decoration: none; border: 1px solid var(--gold); transition: transform .15s ease, box-shadow .2s ease, background .2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 3px; }
+  .btn-gold { background: linear-gradient(180deg, #e3cb93 0%, #c4a061 55%, #a9864b 100%); color: var(--wine-deep); border-color: #e7d3a2; box-shadow: 0 6px 18px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.45); }
+  .btn-outline { background: transparent; color: var(--gold-light); }
+  .btn-wine { background: var(--wine); color: var(--gold-pale); border-color: var(--wine); box-shadow: 0 6px 16px rgba(59,10,20,.25); }
+  .btn-ghost { background: transparent; color: var(--wine); border-color: rgba(184,149,90,.7); }
+  .btn[disabled] { opacity: .55; cursor: not-allowed; }
+  .spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+</style>
+
+<style>
+  body { background: var(--beige); font-size: 17px; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 16px 14px 60px; }
+  header.top { background: linear-gradient(180deg, #6a1828, var(--wine-deep)); color: var(--gold-pale); padding: 16px 14px; border-bottom: 2px solid var(--gold); }
+  header.top .in { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  header.top h1 { font-family: var(--script); font-weight: 400; font-size: 2rem; margin: 0; color: var(--gold-light); line-height: 1; }
+  header.top small { display: block; font-family: var(--caps); font-size: .6rem; letter-spacing: .25em; color: var(--gold-pale); }
+  .hbtns { display: flex; gap: 8px; }
+  .icon-btn { min-height: 40px; padding: 8px 12px; font-size: .64rem; white-space: nowrap; letter-spacing: .1em; }
+
+  .card { background: var(--ivory); border: 1px solid rgba(184,149,90,.5); border-radius: 8px; padding: 16px; box-shadow: 0 6px 18px rgba(59,10,20,.07); }
+  h2 { font-family: var(--caps); font-weight: 500; letter-spacing: .18em; text-transform: uppercase; font-size: .9rem; color: var(--wine); margin: 0 0 12px; }
+
+  /* login */
+  .login { max-width: 380px; margin: 12vh auto 0; text-align: center; }
+  .login .script { font-family: var(--script); font-size: 2.6rem; color: var(--wine); margin: 0 0 4px; }
+  label.f { display: block; text-align: left; font-family: var(--caps); font-size: .68rem; letter-spacing: .15em; text-transform: uppercase; color: var(--wine); margin: 14px 0 6px; }
+  input.in, select.in, textarea.in { width: 100%; min-height: 48px; padding: 10px 12px; border: 1px solid rgba(184,149,90,.75); border-radius: 6px; background: #fffdf8; font-size: 1.05rem; }
+  textarea.in { min-height: 80px; resize: vertical; }
+  .help { font-size: .88rem; color: var(--muted); margin: 4px 0 0; text-align: left; }
+  .msg { padding: 10px 12px; border-radius: 6px; margin: 12px 0; font-size: .98rem; text-align: left; }
+  .msg.err { background: rgba(154,43,43,.09); color: var(--bad); }
+  .msg.ok { background: rgba(79,107,58,.12); color: var(--ok); }
+  .msg.warn { background: rgba(184,149,90,.2); color: #6b4f1d; }
+
+  /* tabs */
+  .tabs { display: flex; gap: 6px; margin: 14px 0; overflow-x: auto; }
+  .tab { flex: 1 0 auto; min-height: 46px; border: 1px solid rgba(184,149,90,.6); background: #fffdf8; border-radius: 999px; font-family: var(--caps); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--wine); cursor: pointer; white-space: nowrap; padding: 0 14px; }
+  .tab[aria-selected=true] { background: var(--wine); color: var(--gold-pale); border-color: var(--wine); }
+
+  /* stats */
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  @media (min-width: 640px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+  .stat { background: var(--ivory); border: 1px solid rgba(184,149,90,.45); border-radius: 8px; padding: 12px; }
+  .stat b { display: block; font-family: var(--caps); font-size: 1.7rem; font-weight: 500; color: var(--wine); line-height: 1.1; }
+  .stat span { font-size: .9rem; color: var(--muted); }
+  .stat.hl { background: var(--wine); border-color: var(--wine); }
+  .stat.hl b { color: var(--gold-light); } .stat.hl span { color: var(--gold-pale); }
+
+  .rsvpbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
+  .pill { display: inline-block; padding: 4px 12px; border-radius: 999px; font-family: var(--caps); font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; }
+  .pill.open, .pill.Confirmed { background: rgba(79,107,58,.15); color: var(--ok); }
+  .pill.closed, .pill.Declined { background: rgba(154,43,43,.12); color: var(--bad); }
+  .pill.Pending { background: rgba(184,149,90,.22); color: #6b4f1d; }
+
+  .tools { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+  .chip { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(184,149,90,.6); background: #fffdf8; cursor: pointer; white-space: nowrap; font-size: .95rem; color: var(--ink); }
+  .chip[aria-pressed=true] { background: var(--gold); color: #fff; border-color: var(--gold); }
+
+  .list { display: grid; gap: 10px; }
+  @media (min-width: 760px) { .list { grid-template-columns: 1fr 1fr; } }
+  .inv { background: #fffdf8; border: 1px solid rgba(184,149,90,.45); border-radius: 8px; padding: 14px; }
+  .inv .row1 { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+  .inv .nm { font-size: 1.2rem; font-weight: 600; color: var(--wine); line-height: 1.25; overflow-wrap: anywhere; }
+  .inv .meta { font-size: .9rem; color: var(--muted); margin-top: 2px; }
+  .inv .note { margin: 8px 0 0; padding: 8px 10px; background: rgba(236,223,202,.5); border-radius: 6px; font-style: italic; font-size: .98rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .inv .acts { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .sbtn { min-height: 42px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(184,149,90,.7); background: #fff; color: var(--wine); cursor: pointer; font-size: .92rem; text-decoration: none; display: inline-flex; align-items: center; }
+  .sbtn.primary { background: var(--wine); color: var(--gold-pale); border-color: var(--wine); }
+  .sbtn.danger { color: var(--bad); border-color: rgba(154,43,43,.5); }
+  .empty { text-align: center; color: var(--muted); padding: 24px; }
+
+  /* modal */
+  .modal { position: fixed; inset: 0; background: rgba(43,8,15,.55); display: flex; align-items: flex-end; justify-content: center; z-index: 50; }
+  .modal[hidden] { display: none; }
+  .sheet { background: var(--ivory); width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; border-radius: 14px 14px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
+  @media (min-width: 600px) { .modal { align-items: center; } .sheet { border-radius: 12px; } }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .row-btns .btn { flex: 1; }
+
+  .settings .item { padding: 6px 0 10px; border-bottom: 1px dashed rgba(184,149,90,.4); }
+  .sticky-save { position: sticky; bottom: 0; background: linear-gradient(180deg, rgba(236,223,202,0), var(--beige) 35%); padding: 16px 0 6px; }
+  .linkbox { word-break: break-all; font-size: .92rem; background: #fffdf8; border: 1px dashed rgba(184,149,90,.7); border-radius: 6px; padding: 10px; }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--wine-deep); color: var(--gold-pale); padding: 12px 18px; border-radius: 999px; z-index: 80; font-size: .95rem; box-shadow: 0 8px 20px rgba(0,0,0,.25); max-width: 92vw; text-align: center; }
+  .stack > * + * { margin-top: 14px; }
+  .loading { text-align: center; padding: 40px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginView" class="wrap" hidden>
+  <div class="card login">
+    <p class="script">Admin</p>
+    <h2>Mayar &amp; Mohamed's Garden</h2>
+    <form id="loginForm">
+      <label class="f" for="pw">Admin password</label>
+      <input class="in" id="pw" type="password" autocomplete="current-password" required>
+      <div id="loginMsg" class="msg err" hidden></div>
+      <button class="btn btn-wine" style="width:100%;margin-top:16px" id="loginBtn">Log in</button>
+    </form>
+    <p class="help" style="margin-top:14px">Forgot the password? Open the Apps Script editor, choose <b>resetAdminPassword</b> and press Run. The new password appears in the Execution log.</p>
+  </div>
+</div>
+
+<!-- ============ DASHBOARD ============ -->
+<div id="appView" hidden>
+  <header class="top">
+    <div class="in">
+      <div><small>RSVP DASHBOARD</small><h1>Mayar &amp; Mohamed</h1></div>
+      <div class="hbtns">
+        <button class="btn btn-outline icon-btn" id="refreshBtn" type="button">Refresh</button>
+        <button class="btn btn-outline icon-btn" id="logoutBtn" type="button">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="guests" aria-selected="true">Guests</button>
+      <button class="tab" role="tab" data-tab="event" aria-selected="false">Wedding info</button>
+      <button class="tab" role="tab" data-tab="more" aria-selected="false">Export</button>
+    </div>
+
+    <div id="globalMsg" class="msg" hidden></div>
+    <div id="loading" class="loading">Loading…</div>
+
+    <!-- Guests -->
+    <section id="tab-guests" hidden>
+      <div class="stats" id="stats"></div>
+
+      <div class="card rsvpbar">
+        <div>RSVP is <span id="rsvpPill" class="pill"></span></div>
+        <button class="sbtn" id="toggleRsvp" type="button"></button>
+      </div>
+
+      <div id="noUrlWarn" class="msg warn" hidden>Personal links will appear after you deploy the web app and open it once — or paste your <b>/exec</b> address into <b>Wedding info → Public Website URL</b>.</div>
+
+      <div class="tools">
+        <input class="in" id="search" type="search" placeholder="Search by name or ID…" aria-label="Search guests">
+        <div class="chips" id="filters">
+          <button class="chip" data-f="all" aria-pressed="true">All</button>
+          <button class="chip" data-f="Confirmed" aria-pressed="false">Confirmed</button>
+          <button class="chip" data-f="Declined" aria-pressed="false">Declined</button>
+          <button class="chip" data-f="Pending" aria-pressed="false">Not responded</button>
+        </div>
+        <button class="btn btn-wine" id="addBtn" type="button">+ Add household</button>
+      </div>
+      <p class="help" id="listCount"></p>
+      <div class="list" id="list"></div>
+    </section>
+
+    <!-- Wedding info -->
+    <section id="tab-event" hidden>
+      <div class="card settings">
+        <h2>Wedding information</h2>
+        <p class="help" style="margin-bottom:8px">Everything guests see on the invitation. Changes appear on the website immediately after saving.</p>
+        <form id="settingsForm"><div id="settingsFields"></div>
+          <div class="sticky-save"><button class="btn btn-wine" style="width:100%" id="saveSettingsBtn">Save wedding information</button></div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Export & security -->
+    <section id="tab-more" hidden class="stack">
+      <div class="card">
+        <h2>Main invitation page</h2>
+        <p class="help">The shared page (no RSVP form). Personal RSVP links are in the Guests tab.</p>
+        <div class="linkbox" id="mainLink"></div>
+        <div class="row-btns"><button class="sbtn" id="copyMain" type="button">Copy link</button><a class="sbtn" id="openMain" target="_blank" rel="noopener">Open</a></div>
+      </div>
+      <div class="card">
+        <h2>Export</h2>
+        <p class="help">Download all households, replies, notes and personal links as a CSV file (opens in Excel, Numbers and Google Sheets).</p>
+        <div class="row-btns">
+          <button class="btn btn-wine" id="exportBtn" type="button">Download CSV</button>
+          <a class="btn btn-ghost" id="sheetLink" target="_blank" rel="noopener">Open Google Sheet</a>
+        </div>
+        <p class="help">For an Excel file: open the Google Sheet → File → Download → Microsoft Excel (.xlsx).</p>
+        <textarea class="in" id="csvFallback" rows="6" hidden readonly></textarea>
+      </div>
+      <div class="card">
+        <h2>Change admin password</h2>
+        <form id="pwForm">
+          <label class="f" for="pwOld">Current password</label><input class="in" id="pwOld" type="password" autocomplete="current-password">
+          <label class="f" for="pwNew">New password (at least 10 characters)</label><input class="in" id="pwNew" type="password" autocomplete="new-password" minlength="10">
+          <div id="pwMsg" class="msg" hidden></div>
+          <button class="btn btn-wine" style="width:100%;margin-top:14px">Change password</button>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ============ EDIT / ADD MODAL ============ -->
+<div class="modal" id="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h2 id="modalTitle">Household</h2>
+    <form id="editForm">
+      <label class="f" for="fName">Guest / household name</label>
+      <input class="in" id="fName" maxlength="120" required>
+      <p class="help">Use "&amp;" between names for a couple, e.g. "Salwa &amp; Marwan".</p>
+      <div class="grid2">
+        <div><label class="f" for="fMax">Maximum guests</label><select class="in" id="fMax"></select></div>
+        <div id="statusWrap"><label class="f" for="fStatus">RSVP status</label>
+          <select class="in" id="fStatus"><option>Pending</option><option>Confirmed</option><option>Declined</option></select></div>
+      </div>
+      <div id="countWrap"><label class="f" for="fCount">Confirmed guests</label><select class="in" id="fCount"></select></div>
+      <div id="noteWrap"><label class="f" for="fNote">Guest note</label><textarea class="in" id="fNote" maxlength="500"></textarea></div>
+      <div id="editMsg" class="msg err" hidden></div>
+      <div class="row-btns">
+        <button class="btn btn-ghost" type="button" id="cancelBtn">Cancel</button>
+        <button class="btn btn-wine" type="submit" id="saveBtn">Save</button>
+      </div>
+      <div class="row-btns" id="dangerBtns">
+        <button class="sbtn" type="button" id="newLinkBtn">Make a new link</button>
+        <button class="sbtn danger" type="button" id="deleteBtn">Delete invitation</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { session: null, data: null, filter: 'all', editing: null };
+  var store = { get: function () { try { return sessionStorage.getItem('wadm'); } catch (e) { return state.session; } },
+                set: function (v) { try { v ? sessionStorage.setItem('wadm', v) : sessionStorage.removeItem('wadm'); } catch (e) {} } };
+
+  function call(fn) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve) {
+      var runner = google.script.run.withSuccessHandler(function (res) {
+        if (res && res.auth) { logout(true); resolve({ ok: false, error: 'Please log in again.' }); return; }
+        resolve(res || { ok: false, error: 'No response.' });
+      }).withFailureHandler(function (err) {
+        resolve({ ok: false, error: 'Could not reach the server: ' + (err && err.message ? err.message : err) });
+      });
+      runner[fn].apply(runner, args);
+    });
+  }
+  function toast(t) { var el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(function () { el.hidden = true; }, 2600); }
+  function msg(el, text, kind) { el.textContent = text || ''; el.className = 'msg ' + (kind || 'err'); el.hidden = !text; }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+
+  /* ---------- login ---------- */
+  function showLogin() { $('appView').hidden = true; $('loginView').hidden = false; setTimeout(function () { $('pw').focus(); }, 50); }
+  function logout(expired) {
+    if (state.session && !expired) call('adminLogout', state.session);
+    state.session = null; store.set(null); state.data = null;
+    showLogin();
+    if (expired) msg($('loginMsg'), 'Your session ended. Please log in again.', 'warn');
+  }
+  $('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var b = $('loginBtn'); b.disabled = true; msg($('loginMsg'), '');
+    call('adminLogin', $('pw').value).then(function (res) {
+      b.disabled = false;
+      if (!res.ok) { msg($('loginMsg'), res.error); return; }
+      $('pw').value = '';
+      state.session = res.session; store.set(res.session);
+      startApp();
+    });
+  });
+  $('logoutBtn').addEventListener('click', function () { logout(false); });
+
+  /* ---------- app ---------- */
+  function startApp() { $('loginView').hidden = true; $('appView').hidden = false; selectTab('guests'); load(); }
+  function load() {
+    $('loading').hidden = false;
+    return call('adminGetData', state.session).then(function (res) {
+      $('loading').hidden = true;
+      if (!res.ok) { msg($('globalMsg'), res.error); return; }
+      msg($('globalMsg'), '');
+      state.data = res;
+      renderAll();
+    });
+  }
+  $('refreshBtn').addEventListener('click', function () { load().then(function () { toast('Updated'); }); });
+
+  function selectTab(name) {
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) { t.setAttribute('aria-selected', t.getAttribute('data-tab') === name ? 'true' : 'false'); });
+    ['guests', 'event', 'more'].forEach(function (n) { $('tab-' + n).hidden = n !== name; });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) { t.addEventListener('click', function () { selectTab(t.getAttribute('data-tab')); }); });
+
+  function renderAll() { renderStats(); renderList(); renderSettings(); renderMore(); }
+
+  function renderStats() {
+    var s = state.data.stats, box = $('stats'); box.innerHTML = '';
+    [['Total invitations', s.invitations], ['Invited capacity', s.capacity], ['Confirmed attendees', s.confirmedGuests, true], ['Remaining capacity', s.remainingCapacity],
+     ['Confirmed households', s.confirmedHouseholds], ['Declined households', s.declinedHouseholds], ['Not responded', s.pendingHouseholds], ['Seats awaiting reply', s.pendingSeats]]
+      .forEach(function (x) { var d = el('div', 'stat' + (x[2] ? ' hl' : '')); d.appendChild(el('b', '', String(x[1]))); d.appendChild(el('span', '', x[0])); box.appendChild(d); });
+    var open = state.data.rsvpOpen;
+    $('rsvpPill').textContent = open ? 'Open' : 'Closed';
+    $('rsvpPill').className = 'pill ' + (open ? 'open' : 'closed');
+    $('toggleRsvp').textContent = open ? 'Close RSVP' : 'Open RSVP';
+    $('noUrlWarn').hidden = !!state.data.baseUrl;
+  }
+  $('toggleRsvp').addEventListener('click', function () {
+    var open = !state.data.rsvpOpen;
+    call('adminSetRsvpOpen', state.session, open).then(function (res) {
+      if (!res.ok) { toast(res.error); return; }
+      load().then(function () {
+        if (open && !state.data.rsvpOpen) toast('Still closed — check the RSVP Deadline in Wedding info.');
+        else toast(open ? 'RSVP is open' : 'RSVP is closed');
+      });
+    });
+  });
+
+  $('search').addEventListener('input', renderList);
+  Array.prototype.forEach.call(document.querySelectorAll('#filters .chip'), function (c) {
+    c.addEventListener('click', function () {
+      state.filter = c.getAttribute('data-f');
+      Array.prototype.forEach.call(document.querySelectorAll('#filters .chip'), function (x) { x.setAttribute('aria-pressed', x === c ? 'true' : 'false'); });
+      renderList();
+    });
+  });
+
+  function renderList() {
+    if (!state.data) return;
+    var q = $('search').value.trim().toLowerCase();
+    var items = state.data.invites.filter(function (x) {
+      if (state.filter !== 'all' && x.status !== state.filter) return false;
+      return !q || x.name.toLowerCase().indexOf(q) >= 0 || x.id.toLowerCase().indexOf(q) >= 0;
+    });
+    var list = $('list'); list.innerHTML = '';
+    $('listCount').textContent = 'Showing ' + items.length + ' of ' + state.data.invites.length + ' invitations';
+    if (!items.length) { list.appendChild(el('div', 'empty', 'No invitations match.')); return; }
+    items.forEach(function (x) {
+      var card = el('div', 'inv');
+      var r1 = el('div', 'row1');
+      var left = el('div');
+      left.appendChild(el('div', 'nm', x.name));
+      var meta = x.id + ' · max ' + x.max + (x.status === 'Confirmed' ? ' · attending ' + x.count : '');
+      left.appendChild(el('div', 'meta', meta));
+      r1.appendChild(left);
+      r1.appendChild(el('span', 'pill ' + x.status, x.status === 'Pending' ? 'No reply' : x.status));
+      card.appendChild(r1);
+      if (x.note) card.appendChild(el('div', 'note', '“' + x.note + '”'));
+      if (x.updated && x.status !== 'Pending') card.appendChild(el('div', 'meta', 'Replied ' + x.updated));
+      var acts = el('div', 'acts');
+      var copy = el('button', 'sbtn', 'Copy link'); copy.type = 'button';
+      copy.disabled = !x.link;
+      copy.addEventListener('click', function () { copyText(x.link, 'Link copied for ' + x.name); });
+      acts.appendChild(copy);
+      if (x.link) {
+        var wa = el('a', 'sbtn', 'WhatsApp');
+        var text = (state.data.whatsappTemplate || '').replace(/\{name\}/g, x.name) + '\n' + x.link;
+        wa.href = 'https://wa.me/?text=' + encodeURIComponent(text); wa.target = '_blank'; wa.rel = 'noopener';
+        acts.appendChild(wa);
+        var op = el('a', 'sbtn', 'Preview'); op.href = x.link; op.target = '_blank'; op.rel = 'noopener'; acts.appendChild(op);
+      }
+      var ed = el('button', 'sbtn primary', 'Edit'); ed.type = 'button';
+      ed.addEventListener('click', function () { openModal(x); });
+      acts.appendChild(ed);
+      card.appendChild(acts);
+      list.appendChild(card);
+    });
+  }
+
+  function copyText(text, okMsg) {
+    if (!text) return;
+    var done = function () { toast(okMsg || 'Copied'); };
+    var fallback = function () {
+      var t = document.createElement('textarea'); t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.select(); t.setSelectionRange(0, text.length);
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(t);
+      if (ok) done(); else window.prompt('Copy this link:', text);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+  }
+
+  /* ---------- add / edit ---------- */
+  function fillSelect(sel, from, to, value) {
+    sel.innerHTML = '';
+    for (var i = from; i <= to; i++) { var o = el('option', '', String(i)); o.value = String(i); sel.appendChild(o); }
+    sel.value = String(value);
+  }
+  function syncCount() {
+    var max = Number($('fMax').value), cur = Number($('fCount').value) || max;
+    fillSelect($('fCount'), 1, max, Math.min(cur, max));
+    $('countWrap').hidden = $('fStatus').value !== 'Confirmed';
+  }
+  $('fMax').addEventListener('change', syncCount);
+  $('fStatus').addEventListener('change', syncCount);
+
+  function openModal(x) {
+    state.editing = x || null;
+    $('modalTitle').textContent = x ? 'Edit invitation · ' + x.id : 'Add household';
+    $('fName').value = x ? x.name : '';
+    fillSelect($('fMax'), 1, 10, x ? x.max : 1);
+    $('fStatus').value = x ? x.status : 'Pending';
+    fillSelect($('fCount'), 1, x ? x.max : 1, x && x.count ? x.count : (x ? x.max : 1));
+    $('fNote').value = x ? x.note : '';
+    $('statusWrap').hidden = !x; $('noteWrap').hidden = !x; $('dangerBtns').hidden = !x;
+    $('deleteBtn').textContent = 'Delete invitation'; $('deleteBtn').dataset.armed = '';
+    $('newLinkBtn').textContent = 'Make a new link'; $('newLinkBtn').dataset.armed = '';
+    syncCount();
+    msg($('editMsg'), '');
+    $('modal').hidden = false;
+    setTimeout(function () { $('fName').focus(); }, 50);
+  }
+  function closeModal() { $('modal').hidden = true; state.editing = null; }
+  $('addBtn').addEventListener('click', function () { openModal(null); });
+  $('cancelBtn').addEventListener('click', closeModal);
+  $('modal').addEventListener('click', function (e) { if (e.target === $('modal')) closeModal(); });
+
+  $('editForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var x = state.editing;
+    var data = { name: $('fName').value, max: Number($('fMax').value) };
+    if (x) { data.id = x.id; data.status = $('fStatus').value; data.count = Number($('fCount').value); data.note = $('fNote').value; }
+    $('saveBtn').disabled = true;
+    call('adminSaveInvite', state.session, data).then(function (res) {
+      $('saveBtn').disabled = false;
+      if (!res.ok) { msg($('editMsg'), res.error); return; }
+      closeModal(); toast(res.message); load();
+    });
+  });
+
+  function armed(btn, label) { if (btn.dataset.armed) return true; btn.dataset.armed = '1'; btn.textContent = label; return false; }
+  $('deleteBtn').addEventListener('click', function () {
+    var b = this; if (!armed(b, 'Tap again to delete for good')) return;
+    call('adminDeleteInvite', state.session, state.editing.id).then(function (res) {
+      if (!res.ok) { msg($('editMsg'), res.error); return; }
+      closeModal(); toast(res.message); load();
+    });
+  });
+  $('newLinkBtn').addEventListener('click', function () {
+    var b = this; if (!armed(b, 'Tap again: old link will stop working')) return;
+    call('adminNewLink', state.session, state.editing.id).then(function (res) {
+      if (!res.ok) { msg($('editMsg'), res.error); return; }
+      closeModal(); toast(res.message); load();
+    });
+  });
+
+  /* ---------- wedding info ---------- */
+  var LONG = { 'Invitation Message': 1, 'Second Message': 1, 'Shared Page RSVP Note': 1, 'Attending Message': 1, 'Declining Message': 1, 'WhatsApp Message': 1, 'Google Maps Link': 1, 'Background Image URL': 1 };
+  var CHOICES = { 'RSVP Status': ['Open', 'Closed'], 'Show Countdown': ['Yes', 'No'] };
+  function renderSettings() {
+    var box = $('settingsFields'); box.innerHTML = '';
+    state.data.settings.forEach(function (s, i) {
+      var item = el('div', 'item');
+      var lab = el('label', 'f', s.key); lab.htmlFor = 'set' + i; item.appendChild(lab);
+      var input;
+      if (CHOICES[s.key]) {
+        input = el('select', 'in');
+        CHOICES[s.key].forEach(function (c) { var o = el('option', '', c); o.value = c; input.appendChild(o); });
+        input.value = CHOICES[s.key].indexOf(s.value) >= 0 ? s.value : CHOICES[s.key][0];
+      } else if (LONG[s.key]) { input = el('textarea', 'in'); input.value = s.value; }
+      else { input = el('input', 'in'); input.value = s.value; }
+      input.id = 'set' + i; input.dataset.key = s.key; input.dataset.orig = input.value;
+      item.appendChild(input);
+      if (s.help) item.appendChild(el('p', 'help', s.help));
+      box.appendChild(item);
+    });
+  }
+  $('settingsForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var values = {}, n = 0;
+    Array.prototype.forEach.call(document.querySelectorAll('#settingsFields [data-key]'), function (i) { if (i.value !== i.dataset.orig) { values[i.dataset.key] = i.value; n++; } });
+    if (!n) { toast('Nothing changed'); return; }
+    $('saveSettingsBtn').disabled = true;
+    call('adminSaveSettings', state.session, values).then(function (res) {
+      $('saveSettingsBtn').disabled = false;
+      if (!res.ok) { msg($('globalMsg'), res.error); window.scrollTo(0, 0); return; }
+      if (res.warnings && res.warnings.length) { msg($('globalMsg'), res.warnings.join(' '), 'warn'); window.scrollTo(0, 0); }
+      toast(res.message); load();
+    });
+  });
+
+  /* ---------- export & security ---------- */
+  function renderMore() {
+    var base = state.data.baseUrl;
+    $('mainLink').textContent = base || 'Not available yet — deploy the web app first.';
+    $('copyMain').disabled = !base;
+    if (base) $('openMain').href = base; $('openMain').hidden = !base;
+    $('sheetLink').href = state.data.sheetUrl;
+  }
+  $('copyMain').addEventListener('click', function () { copyText(state.data.baseUrl, 'Main link copied'); });
+
+  $('exportBtn').addEventListener('click', function () {
+    var b = this; b.disabled = true;
+    call('adminExportCsv', state.session).then(function (res) {
+      b.disabled = false;
+      if (!res.ok) { toast(res.error); return; }
+      var csv = '﻿' + res.csv;
+      try {
+        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = res.filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+        toast('Download started');
+      } catch (e) { /* fall through */ }
+      var f = $('csvFallback'); f.value = res.csv; f.hidden = false;
+    });
+  });
+
+  $('pwForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    call('adminChangePassword', state.session, $('pwOld').value, $('pwNew').value).then(function (res) {
+      if (!res.ok) { msg($('pwMsg'), res.error); return; }
+      state.session = res.session; store.set(res.session);
+      $('pwOld').value = ''; $('pwNew').value = '';
+      msg($('pwMsg'), res.message, 'ok');
+    });
+  });
+
+  /* ---------- start ---------- */
+  state.session = store.get();
+  if (state.session) startApp(); else showLogin();
+})();
+</script>
+</body>
+</html>
