@@ -293,7 +293,7 @@ Object.defineProperty(window.google.script, 'run', { get: function () {
       <p class="pl-name" id="gateName">Mayar &amp; Mohamed</p>
       <span class="pl-rule" aria-hidden="true"></span>
     </div>
-    <button class="gate-btn" type="button" id="openGate">View Invitation</button>
+    <button class="gate-btn" type="button" id="openGate">Welcome</button>
   </div>
 </div>
 </div>
@@ -443,6 +443,7 @@ function startInvite(BOOT) {
   /* ----- the gates ----- */
   var gate = $('gate');
   function openGate() {
+    if (gate.classList.contains('opening')) return;
     gate.classList.add('opening');
     $('card').classList.add('reveal');
     var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -450,7 +451,7 @@ function startInvite(BOOT) {
     setTimeout(function () { gate.classList.add('gone'); }, reduce ? 300 : 2100);
   }
   $('openGate').addEventListener('click', openGate);
-  $('knock').addEventListener('click', function () { gate.classList.add('unveiled'); setTimeout(function () { $('openGate').focus({ preventScroll: true }); }, 1800); });
+  $('knock').addEventListener('click', function () { gate.classList.add('unveiled'); setTimeout(openGate, 3600); });
 
   if (!BOOT.ready) {
     show('viewNotReady');
