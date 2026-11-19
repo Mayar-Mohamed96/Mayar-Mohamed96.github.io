@@ -119,7 +119,7 @@ Object.defineProperty(window.google.script, 'run', { get: function () {
     radial-gradient(circle, var(--wine) 0 1.1cqw, transparent 1.2cqw) center / 2.4cqw 2.4cqw no-repeat,
     linear-gradient(var(--wine), var(--wine)) left center / 40% 1px no-repeat,
     linear-gradient(var(--wine), var(--wine)) right center / 40% 1px no-repeat; opacity: .8; }
-  .gate-btn { position: absolute; left: 27.3%; width: 45.4%; top: 84.1%; height: 6.3%; border: 0; border-radius: 999px; cursor: pointer;
+  .gate-btn { pointer-events: none; cursor: default; position: absolute; left: 27.3%; width: 45.4%; top: 84.1%; height: 6.3%; border: 0; border-radius: 999px; cursor: pointer;
     background: linear-gradient(180deg, #8c2438, #5b1222); border: .45cqw solid #d8b263; color: #f7e8c9; box-shadow: 0 1cqw 3cqw rgba(60,10,20,.45);
     font-family: var(--caps); font-size: 2.7cqw; letter-spacing: .24em; text-transform: uppercase; transition: box-shadow .3s ease, opacity .4s ease; }
   .gate-btn:hover, .gate-btn:focus-visible { box-shadow: 0 0 0 2px rgba(232,200,120,.9), 0 0 24px rgba(232,200,120,.6); outline: none; }
@@ -293,7 +293,7 @@ Object.defineProperty(window.google.script, 'run', { get: function () {
       <p class="pl-name" id="gateName">Mayar &amp; Mohamed</p>
       <span class="pl-rule" aria-hidden="true"></span>
     </div>
-    <button class="gate-btn" type="button" id="openGate">Welcome</button>
+    <button class="gate-btn" type="button" id="openGate" tabindex="-1" aria-hidden="true">Welcome</button>
   </div>
 </div>
 </div>
@@ -483,6 +483,7 @@ function startInvite(BOOT) {
   if (invite) { $('gateTop').textContent = 'Reserved for'; $('gateName').textContent = invite.name; }
   else { $('gateTop').textContent = 'You are invited to the wedding of'; $('gateName').textContent = ev.coupleNames || ''; }
   $('gateName').classList.toggle('long', ($('gateName').textContent || '').length > 18);
+  $('openGate').textContent = ev.prettyDate || ev.dateText || '';
 
   /* ----- countdown ----- */
   if (ev.showCountdown && ev.epoch) {
