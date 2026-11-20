@@ -100,6 +100,8 @@ Object.defineProperty(window.google.script, 'run', { get: function () {
   .note { color: var(--muted); font-size: .95rem; margin: 18px 0 0; }
   .btn { margin-top: 16px; }
   .center-msg { padding: 10px 4px; font-size: 1.15rem; }
+  .namebox { display: block; width: 100%; box-sizing: border-box; margin: 0 0 14px; padding: 12px 14px; border: 1px solid rgba(184,149,90,.8); border-radius: 12px; background: #fffdf8; font: inherit; font-size: 1.08rem; color: var(--ink); text-align: center; }
+  .namebox:focus { outline: 2px solid var(--gold-light); border-color: var(--gold); }
   .boot-loader { display: none; }
   body.booting .page { visibility: hidden; }
   body.booting .boot-loader { display: flex; position: fixed; inset: 0; align-items: center; justify-content: center; }
@@ -117,6 +119,7 @@ Object.defineProperty(window.google.script, 'run', { get: function () {
     <div id="viewUpload" hidden>
       <p class="lead">Send us the moments you captured tonight. Your photos go privately to Mayar &amp; Mohamed.</p>
       <p class="who" id="who"></p>
+      <input class="namebox" id="guestName" type="text" maxlength="60" autocomplete="name" placeholder="Your name (optional)" aria-label="Your name (optional)" hidden>
       <label class="pick" id="pickLabel">
         Choose photos
         <small>You can select many at once</small>
@@ -146,19 +149,25 @@ var BOOT = null;
 (function () {
   function $(id) { return document.getElementById(id); }
   function show(id) { ['viewUpload', 'viewClosed', 'viewBadLink'].forEach(function (v) { $(v).hidden = v !== id; }); }
-  var token = '';
+  var token = '', tableKey = '';
 
   function start(b) {
     document.body.classList.remove('booting');
     b = b || {};
     if (b.event && b.event.websiteName) $('eyebrow').textContent = b.event.websiteName;
-    if (!b.ready || !b.invite) { show('viewBadLink'); return; }
-    token = b.token;
+    if (!b.ready || !(b.invite || b.table)) { show('viewBadLink'); return; }
+    token = b.token || '';
     if (!b.photosOpen) {
-      $('closedText').textContent = 'Photo sharing opens on the wedding day' + (b.event && b.event.prettyDate ? ', ' + b.event.prettyDate : '') + '. Please come back then using the same link.';
+      $('closedText').textContent = 'Photo sharing opens on the wedding day' + (b.event && b.event.prettyDate ? ', ' + b.event.prettyDate : '') + (b.table ? '. Please scan the code again then.' : '. Please come back then using the same link.');
       show('viewClosed'); return;
     }
-    $('who').textContent = 'From ' + b.invite.name;
+    if (b.table) {
+      $('who').hidden = true;
+      $('guestName').hidden = false;
+      try { $('guestName').value = localStorage.getItem('mm_guest_name') || ''; } catch (e) {}
+    } else {
+      $('who').textContent = 'From ' + b.invite.name;
+    }
     show('viewUpload');
   }
 
@@ -188,7 +197,7 @@ var BOOT = null;
 
   function send(item, tries) {
     return new Promise(function (resolve) {
-      google.script.run
+      var run = google.script.run
         .withSuccessHandler(function (res) {
           if (res && res.ok) resolve({ ok: true });
           else if (res && res.closed) resolve({ ok: false, closed: true, error: res.error });
@@ -197,8 +206,14 @@ var BOOT = null;
         .withFailureHandler(function () {
           if (tries > 0) setTimeout(function () { send(item, tries - 1).then(resolve); }, 1500);
           else resolve({ ok: false, error: 'No connection. Please try again.' });
-        })
-        .uploadPhoto(token, item.name, item.mime, item.data);
+        });
+      if (tableKey) {
+        var who = $('guestName').value.trim();
+        try { if (who) localStorage.setItem('mm_guest_name', who); } catch (e) {}
+        run.uploadTablePhoto(tableKey, who, item.name, item.mime, item.data);
+      } else {
+        run.uploadPhoto(token, item.name, item.mime, item.data);
+      }
     });
   }
 
@@ -250,11 +265,12 @@ var BOOT = null;
   }
   if (BOOT) start(BOOT);
   else {
-    var t = new URLSearchParams(location.search).get('i') || '';
-    google.script.run
+    var q = new URLSearchParams(location.search);
+    var t = q.get('i') || '', k = q.get('k') || '';
+    var r = google.script.run
       .withSuccessHandler(function (b) { start(b || { ready: false }); })
-      .withFailureHandler(function () { start({ ready: false }); })
-      .getBoot(t);
+      .withFailureHandler(function () { start({ ready: false }); });
+    if (k && !t) { tableKey = k; r.getTableBoot(k); } else r.getBoot(t);
   }
 })();
 </script>
