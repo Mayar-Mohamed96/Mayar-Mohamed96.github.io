@@ -347,6 +347,7 @@ Object.defineProperty(window.google.script, 'run', { get: function () {
       <div class="actions">
         <a class="btn btn-wine" href="#rsvp" id="rsvpBtn">RSVP</a>
         <a class="btn btn-maps" id="mapsBtn" target="_blank" rel="noopener noreferrer" hidden>Open in Google Maps</a>
+        <a class="btn btn-gold" id="photosBtn" hidden>Share Your Photos</a>
       </div>
       <svg class="ornament" aria-hidden="true"><use href="#ornament"/></svg>
     </div>
@@ -485,6 +486,7 @@ function startInvite(BOOT) {
   setText('location', ev.location);
   setText('style', ev.style);
   if (ev.mapsUrl) { $('mapsBtn').href = ev.mapsUrl; $('mapsBtn').hidden = false; }
+  if (BOOT.photosOpen && invite && BOOT.token && !onGoogle) { $('photosBtn').href = 'photos.html?i=' + encodeURIComponent(BOOT.token); $('photosBtn').hidden = false; }
   if (ev.backgroundUrl) { var bg = $('bg'); bg.style.backgroundImage = 'url("' + ev.backgroundUrl + '")'; bg.className = 'bg on'; }
 
   if (invite) { $('gateTop').textContent = 'Reserved for'; $('gateName').textContent = invite.name; }
