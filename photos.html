@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+/* Talks to the Google Apps Script server without using the visitor's Google
+   accounts, so it works for people signed in to several Google accounts. */
+var API_URL = 'https://script.google.com/macros/s/AKfycbzqGk16m8KnIU8u54iYqoGK-qFGZslIy4D2ccnaMedHp4koyn6BEDgaoOvXX-QxwlrN/exec';
+window.google = { script: {} };
+Object.defineProperty(window.google.script, 'run', { get: function () {
+  var ok = null, bad = null;
+  var runner = new Proxy({}, { get: function (t, name) {
+    if (name === 'withSuccessHandler') return function (f) { ok = f; return runner; };
+    if (name === 'withFailureHandler') return function (f) { bad = f; return runner; };
+    return function () {
+      var args = Array.prototype.slice.call(arguments), s = ok, b = bad;
+      fetch(API_URL, { method: 'POST', body: JSON.stringify({ fn: name, args: args }), credentials: 'omit', redirect: 'follow' })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (x) { if (x && x.__error) throw new Error(x.__error); if (s) s(x); })
+        .catch(function (e) { if (b) b(e); });
+    };
+  } });
+  return runner;
+} });
+</script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Share Your Photos · Mayar &amp; Mohamed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Pinyon+Script&display=swap" rel="stylesheet">
+<style>
+  /* ===== Colour palette — change these to restyle the whole site ===== */
+  :root {
+    --wine: #5e1424;          /* deep burgundy */
+    --wine-deep: #3b0a14;     /* darkest burgundy */
+    --wine-soft: #7a2537;
+    --gold: #b8955a;          /* antique gold */
+    --gold-light: #dcc28a;    /* bright gold for text on burgundy */
+    --gold-pale: #efe0bb;
+    --ivory: #f8f1e5;         /* champagne ivory */
+    --beige: #ecdfca;         /* soft warm beige */
+    --ink: #4a1220;           /* text on ivory */
+    --muted: #7d6257;
+    --ok: #4f6b3a;
+    --bad: #9a2b2b;
+    --serif: 'Cormorant Garamond', 'Times New Roman', Georgia, serif;
+    --caps: 'Cinzel', 'Times New Roman', Georgia, serif;
+    --script: 'Pinyon Script', 'Snell Roundhand', 'Apple Chancery', cursive;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; font-family: var(--serif); color: var(--ink); font-size: 18px; line-height: 1.5; overflow-x: hidden; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  [hidden] { display: none !important; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: .5em;
+    min-height: 50px; padding: 12px 26px; border-radius: 999px; cursor: pointer;
+    font-family: var(--caps); font-size: .82rem; letter-spacing: .16em; text-transform: uppercase;
+    text-decoration: none; border: 1px solid var(--gold); transition: transform .15s ease, box-shadow .2s ease, background .2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 3px; }
+  .btn-gold { background: linear-gradient(180deg, #e3cb93 0%, #c4a061 55%, #a9864b 100%); color: var(--wine-deep); border-color: #e7d3a2; box-shadow: 0 6px 18px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.45); }
+  .btn-outline { background: transparent; color: var(--gold-light); }
+  .btn-wine { background: var(--wine); color: var(--gold-pale); border-color: var(--wine); box-shadow: 0 6px 16px rgba(59,10,20,.25); }
+  .btn-ghost { background: transparent; color: var(--wine); border-color: rgba(184,149,90,.7); }
+  .btn[disabled] { opacity: .55; cursor: not-allowed; }
+  .spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+</style>
+
+<style>
+  body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at top, #6e1a2b, var(--wine-deep) 70%); color: var(--ink); font-family: var(--serif); }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 28px 16px 48px; }
+  .card { background: var(--ivory); border-radius: 18px; padding: 26px 22px 24px; box-shadow: 0 18px 50px rgba(0,0,0,.35); border: 1px solid rgba(220,194,138,.7); text-align: center; position: relative; }
+  .card::before { content: ''; position: absolute; inset: 8px; border: 1px solid rgba(184,149,90,.55); border-radius: 13px; pointer-events: none; }
+  .crest-img { width: 84px; aspect-ratio: 220 / 276; display: block; margin: 0 auto 6px; background: var(--crest, none) center / contain no-repeat; mix-blend-mode: multiply; }
+  .eyebrow { font-family: var(--caps); letter-spacing: .3em; font-size: .72rem; color: var(--gold); margin: 6px 0 2px; text-transform: uppercase; }
+  h1 { font-family: var(--script); font-weight: 400; color: var(--wine); font-size: 2.6rem; margin: 4px 0 6px; line-height: 1.1; }
+  .lead { font-size: 1.12rem; color: var(--muted); margin: 0 0 18px; }
+  .who { font-family: var(--caps); color: var(--wine); letter-spacing: .08em; margin: 0 0 18px; font-size: .95rem; }
+  .pick { display: block; border: 1.5px dashed rgba(184,149,90,.9); border-radius: 14px; padding: 22px 12px; cursor: pointer; background: rgba(239,224,187,.35); color: var(--wine); font-family: var(--caps); letter-spacing: .12em; font-size: .9rem; }
+  .pick small { display: block; font-family: var(--serif); letter-spacing: 0; color: var(--muted); font-size: .95rem; margin-top: 6px; }
+  .pick input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .list { list-style: none; padding: 0; margin: 16px 0 0; text-align: left; }
+  .list li { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid rgba(184,149,90,.25); font-size: 1rem; }
+  .list img { width: 42px; height: 42px; object-fit: cover; border-radius: 6px; flex: none; background: var(--beige); }
+  .list .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .list .st { font-family: var(--caps); font-size: .72rem; letter-spacing: .08em; color: var(--muted); }
+  .list .st.ok { color: var(--ok); } .list .st.bad { color: var(--bad); }
+  .bar { height: 6px; background: var(--beige); border-radius: 99px; overflow: hidden; margin: 16px 0 6px; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--gold), var(--gold-light)); transition: width .3s ease; }
+  .msg { margin: 14px 0 0; font-size: 1.08rem; }
+  .msg.ok { color: var(--ok); } .msg.bad { color: var(--bad); }
+  .note { color: var(--muted); font-size: .95rem; margin: 18px 0 0; }
+  .btn { margin-top: 16px; }
+  .center-msg { padding: 10px 4px; font-size: 1.15rem; }
+  .boot-loader { display: none; }
+  body.booting .page { visibility: hidden; }
+  body.booting .boot-loader { display: flex; position: fixed; inset: 0; align-items: center; justify-content: center; }
+  body.booting .boot-loader .spinner { width: 26px; height: 26px; color: var(--gold-light); }
+</style>
+</head>
+<body class="booting" data-crest-from-index>
+<div class="boot-loader" aria-live="polite" aria-label="Loading"><span class="spinner"></span></div>
+<main class="wrap page">
+  <div class="card">
+    <span class="crest-img" aria-hidden="true"></span>
+    <p class="eyebrow" id="eyebrow">Mayar &amp; Mohamed's Wedding</p>
+    <h1>Share Your Photos</h1>
+
+    <div id="viewUpload" hidden>
+      <p class="lead">Send us the moments you captured tonight. Your photos go privately to Mayar &amp; Mohamed.</p>
+      <p class="who" id="who"></p>
+      <label class="pick" id="pickLabel">
+        Choose photos
+        <small>You can select many at once</small>
+        <input type="file" id="files" accept="image/*" multiple>
+      </label>
+      <div id="progress" hidden>
+        <div class="bar"><i id="barFill"></i></div>
+        <p class="st" id="progressText"></p>
+      </div>
+      <ul class="list" id="list"></ul>
+      <p class="msg" id="msg" aria-live="polite"></p>
+      <p class="note">Thank you for celebrating with us 🤍</p>
+    </div>
+
+    <div id="viewClosed" hidden>
+      <p class="center-msg" id="closedText">Photo sharing opens on the wedding day. Please come back then.</p>
+    </div>
+
+    <div id="viewBadLink" hidden>
+      <p class="center-msg">Please open the personal invitation link you received, then tap “Share Your Photos”.</p>
+    </div>
+  </div>
+</main>
+
+<script>
+var BOOT = null;
+(function () {
+  function $(id) { return document.getElementById(id); }
+  function show(id) { ['viewUpload', 'viewClosed', 'viewBadLink'].forEach(function (v) { $(v).hidden = v !== id; }); }
+  var token = '';
+
+  function start(b) {
+    document.body.classList.remove('booting');
+    b = b || {};
+    if (b.event && b.event.websiteName) $('eyebrow').textContent = b.event.websiteName;
+    if (!b.ready || !b.invite) { show('viewBadLink'); return; }
+    token = b.token;
+    if (!b.photosOpen) {
+      $('closedText').textContent = 'Photo sharing opens on the wedding day' + (b.event && b.event.prettyDate ? ', ' + b.event.prettyDate : '') + '. Please come back then using the same link.';
+      show('viewClosed'); return;
+    }
+    $('who').textContent = 'From ' + b.invite.name;
+    show('viewUpload');
+  }
+
+  // Shrinks big phone photos so they upload quickly (keeps them sharp for printing up to ~20 cm).
+  function prepare(file) {
+    return new Promise(function (resolve) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var max = 2400, w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, max / Math.max(w, h));
+        var c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        var data = c.toDataURL('image/jpeg', 0.88);
+        URL.revokeObjectURL(url);
+        resolve({ mime: 'image/jpeg', data: data.slice(data.indexOf(',') + 1), thumb: c.toDataURL('image/jpeg', 0.4) });
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        var r = new FileReader();
+        r.onload = function () { var s = String(r.result); resolve({ mime: (file.type || 'image/heic').toLowerCase(), data: s.slice(s.indexOf(',') + 1), thumb: '' }); };
+        r.onerror = function () { resolve(null); };
+        r.readAsDataURL(file);
+      };
+      img.src = url;
+    });
+  }
+
+  function send(item, tries) {
+    return new Promise(function (resolve) {
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res && res.ok) resolve({ ok: true });
+          else if (res && res.closed) resolve({ ok: false, closed: true, error: res.error });
+          else resolve({ ok: false, error: (res && res.error) || 'Could not send.' });
+        })
+        .withFailureHandler(function () {
+          if (tries > 0) setTimeout(function () { send(item, tries - 1).then(resolve); }, 1500);
+          else resolve({ ok: false, error: 'No connection. Please try again.' });
+        })
+        .uploadPhoto(token, item.name, item.mime, item.data);
+    });
+  }
+
+  var busy = false;
+  $('files').addEventListener('change', async function () {
+    var files = Array.prototype.slice.call(this.files || []);
+    this.value = '';
+    if (!files.length || busy) return;
+    busy = true;
+    $('pickLabel').style.opacity = '.5'; $('pickLabel').style.pointerEvents = 'none';
+    $('msg').textContent = ''; $('msg').className = 'msg';
+    $('progress').hidden = false;
+    var done = 0, okCount = 0, failed = 0;
+    function progress() {
+      $('barFill').style.width = Math.round(done / files.length * 100) + '%';
+      $('progressText').textContent = 'Sending ' + Math.min(done + 1, files.length) + ' of ' + files.length + '…';
+    }
+    progress();
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      var li = document.createElement('li');
+      var im = document.createElement('img'); im.alt = '';
+      var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = f.name || ('Photo ' + (i + 1));
+      var st = document.createElement('span'); st.className = 'st'; st.textContent = 'Sending…';
+      li.appendChild(im); li.appendChild(nm); li.appendChild(st);
+      $('list').insertBefore(li, $('list').firstChild);
+      var item = await prepare(f);
+      if (!item) { st.textContent = 'Not a photo'; st.className = 'st bad'; failed++; done++; progress(); continue; }
+      if (item.thumb) im.src = item.thumb;
+      item.name = f.name || 'photo';
+      var res = await send(item, 2);
+      if (res.ok) { okCount++; st.textContent = 'Sent ✓'; st.className = 'st ok'; }
+      else { failed++; st.textContent = res.error; st.className = 'st bad'; if (res.closed) { done = files.length; break; } }
+      done++; progress();
+    }
+    $('progress').hidden = true;
+    $('msg').textContent = okCount ? ('Thank you! ' + okCount + ' photo' + (okCount === 1 ? '' : 's') + ' sent' + (failed ? ', ' + failed + ' could not be sent.' : '.')) : 'Nothing was sent. Please try again.';
+    $('msg').className = 'msg ' + (failed ? 'bad' : 'ok');
+    $('pickLabel').style.opacity = ''; $('pickLabel').style.pointerEvents = '';
+    busy = false;
+  });
+
+  // The monogram lives inside the invitation page; borrow it from there (the browser usually has it cached).
+  if (!/data:/.test(getComputedStyle(document.documentElement).getPropertyValue('--crest'))) {
+    fetch('index.html').then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
+      var m = /--crest:url\("(data:image\/jpeg;base64,[A-Za-z0-9+\/=]+)"\)/.exec(t);
+      document.documentElement.style.setProperty('--crest', 'url("' + (m ? m[1] : 'assets/crest.jpg') + '")');
+    }).catch(function () {});
+  }
+  if (BOOT) start(BOOT);
+  else {
+    var t = new URLSearchParams(location.search).get('i') || '';
+    google.script.run
+      .withSuccessHandler(function (b) { start(b || { ready: false }); })
+      .withFailureHandler(function () { start({ ready: false }); })
+      .getBoot(t);
+  }
+})();
+</script>
+</body>
+</html>
