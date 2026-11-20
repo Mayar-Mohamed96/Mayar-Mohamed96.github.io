@@ -186,6 +186,22 @@ Object.defineProperty(window.google.script, 'run', { get: function () {
   .actions { display: flex; flex-direction: column; gap: 10px; align-items: stretch; max-width: 290px; margin: 0 auto; }
   .btn-maps { background: transparent; color: var(--wine); border-color: #c9a35c; }
   .ornament { display: block; width: 120px; height: 22px; margin: 18px auto 0; }
+  .btn-ico { display: inline-flex; align-items: center; justify-content: center; gap: 9px; }
+  .btn-ico svg { width: 16px; height: 16px; flex: none; }
+  .cal-menu { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid rgba(201,163,92,.75); border-radius: 14px; background: rgba(255,250,241,.75); }
+  .cal-menu .cal-title { margin: 0 0 2px; font-family: var(--caps); font-size: .7rem; letter-spacing: .22em; text-transform: uppercase; color: #8a6a35; }
+  .cal-menu .btn { min-height: 44px; }
+
+  /* ================= SONG REQUESTS ================= */
+  .songs .script-sub { font-family: var(--script); font-size: 2.1rem; line-height: 1.1; color: var(--wine); margin: 6px 0 2px; }
+  .song-form { display: flex; flex-direction: column; gap: 10px; max-width: 320px; margin: 14px auto 0; }
+  .song-form input { width: 100%; box-sizing: border-box; min-height: 48px; padding: 12px 14px; border: 1px solid rgba(184,149,90,.7); border-radius: 8px; background: #fffdf8; font-size: 1.08rem; text-align: center; }
+  .song-form input:focus { outline: 2px solid rgba(184,149,90,.6); outline-offset: 1px; }
+  .song-msg { min-height: 1.4em; margin: 10px 0 0; font-size: 1.02rem; }
+  .song-msg.ok { color: var(--ok); } .song-msg.bad { color: var(--bad); }
+  .song-list { list-style: none; padding: 0; margin: 8px auto 0; max-width: 320px; }
+  .song-list li { padding: 7px 0; border-top: 1px solid rgba(201,163,92,.35); font-style: italic; color: var(--ink); }
+  .song-list li::before { content: "\266B"; margin-right: 8px; color: var(--gold); font-style: normal; }
 
   /* ================= RSVP PANEL ================= */
   .panel {
@@ -347,6 +363,12 @@ Object.defineProperty(window.google.script, 'run', { get: function () {
       <div class="actions">
         <a class="btn btn-wine" href="#rsvp" id="rsvpBtn">RSVP</a>
         <a class="btn btn-maps" id="mapsBtn" target="_blank" rel="noopener noreferrer" hidden>Open in Google Maps</a>
+        <button class="btn btn-maps btn-ico" type="button" id="calBtn" aria-expanded="false" aria-controls="calMenu" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M12 13.2l1 2 2.2.3-1.6 1.5.4 2.2-2-1.1-2 1.1.4-2.2-1.6-1.5 2.2-.3z" fill="currentColor" stroke="none"/></svg>Save the Date</button>
+        <div class="cal-menu" id="calMenu" hidden>
+          <p class="cal-title">Add to your calendar</p>
+          <a class="btn btn-maps" id="calGoogle" target="_blank" rel="noopener noreferrer">Google Calendar</a>
+          <a class="btn btn-maps" id="calIcs" download="Mayar-and-Mohamed-Wedding.ics">Apple · Outlook Calendar</a>
+        </div>
         <a class="btn btn-gold" id="photosBtn" hidden>Share Your Photos</a>
       </div>
       <svg class="ornament" aria-hidden="true"><use href="#ornament"/></svg>
@@ -415,6 +437,21 @@ Object.defineProperty(window.google.script, 'run', { get: function () {
       <p class="soft" id="doneSummary"></p>
       <button class="btn btn-ghost" type="button" id="changeBtn">Change my reply</button>
     </div>
+  </section>
+
+  <section class="panel songs" id="songsPanel" aria-labelledby="songsTitle" hidden>
+    <span class="crest-sm crest-img" aria-hidden="true"></span>
+    <h2 id="songsTitle">Request a Song</h2>
+    <p class="script-sub">for the dance floor</p>
+    <div class="divider"><svg aria-hidden="true"><use href="#rings"/></svg></div>
+    <p class="soft">Which song will bring you to the dance floor? Tell our DJ and we will make sure it plays.</p>
+    <form class="song-form" id="songForm" novalidate>
+      <label class="sr-only" for="songInput">Song name and artist</label>
+      <input id="songInput" type="text" maxlength="120" autocomplete="off" placeholder="Song name — Artist">
+      <button class="btn btn-gold" type="submit" id="songBtn">Send to the DJ</button>
+    </form>
+    <p class="song-msg" id="songMsg" aria-live="polite"></p>
+    <ul class="song-list" id="songList"></ul>
   </section>
 
   <footer>
@@ -486,6 +523,7 @@ function startInvite(BOOT) {
   setText('location', ev.location);
   setText('style', ev.style);
   if (ev.mapsUrl) { $('mapsBtn').href = ev.mapsUrl; $('mapsBtn').hidden = false; }
+  if (ev.epoch) setupCalendar(ev);
   if (BOOT.photosOpen && invite && BOOT.token && !onGoogle) { $('photosBtn').href = 'photos.html?i=' + encodeURIComponent(BOOT.token); $('photosBtn').hidden = false; }
   if (ev.backgroundUrl) { var bg = $('bg'); bg.style.backgroundImage = 'url("' + ev.backgroundUrl + '")'; bg.className = 'bg on'; }
 
@@ -565,6 +603,60 @@ function startInvite(BOOT) {
     updateCountVisibility();
   }
 
+  /* ----- Save the Date: Google Calendar link + .ics file for Apple / Outlook ----- */
+  function setupCalendar(ev) {
+    var start = new Date(ev.epoch), end = new Date(ev.epoch + 5 * 3600 * 1000);
+    var title = (ev.coupleNames || 'Mayar & Mohamed') + "'s Wedding";
+    var where = [ev.venue, ev.location].filter(Boolean).join(', ');
+    var link = location.href.split('#')[0];
+    var details = (ev.style ? ev.style + '. ' : '') + 'Your invitation: ' + link;
+    function stamp(d) { return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''); }
+    $('calGoogle').href = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+      + '&text=' + encodeURIComponent(title)
+      + '&dates=' + stamp(start) + '/' + stamp(end)
+      + '&details=' + encodeURIComponent(details)
+      + '&location=' + encodeURIComponent(where);
+    function esc(t) { return String(t).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
+    var ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Mayar and Mohamed//Wedding//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+      'BEGIN:VEVENT', 'UID:mayar-mohamed-wedding-' + ev.epoch + '@mayar-mohamed96.github.io', 'DTSTAMP:' + stamp(new Date()),
+      'DTSTART:' + stamp(start), 'DTEND:' + stamp(end), 'SUMMARY:' + esc(title), 'LOCATION:' + esc(where), 'DESCRIPTION:' + esc(details),
+      'BEGIN:VALARM', 'TRIGGER:-P1D', 'ACTION:DISPLAY', 'DESCRIPTION:' + esc(title + ' is tomorrow'), 'END:VALARM',
+      'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    $('calIcs').href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+    $('calBtn').hidden = false;
+    $('calBtn').addEventListener('click', function () {
+      var open = $('calMenu').hidden;
+      $('calMenu').hidden = !open;
+      this.setAttribute('aria-expanded', String(open));
+    });
+  }
+
+  /* ----- Song requests for the DJ ----- */
+  function setupSongs() {
+    if (!BOOT.token || (ev.epoch && Date.now() > ev.epoch + 12 * 3600 * 1000)) return;
+    $('songsPanel').hidden = false;
+    var busySong = false;
+    $('songForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var song = $('songInput').value.trim();
+      var msg = $('songMsg');
+      if (song.length < 2) { msg.textContent = 'Please write the song name.'; msg.className = 'song-msg bad'; return; }
+      if (busySong) return;
+      busySong = true; $('songBtn').disabled = true; msg.textContent = 'Sending…'; msg.className = 'song-msg';
+      google.script.run
+        .withSuccessHandler(function (res) {
+          busySong = false; $('songBtn').disabled = false;
+          if (res && res.ok) {
+            var li = document.createElement('li'); li.textContent = song; $('songList').appendChild(li);
+            $('songInput').value = '';
+            msg.textContent = 'Added to the DJ\u2019s list. See you on the dance floor!'; msg.className = 'song-msg ok';
+          } else { msg.textContent = (res && res.error) || 'Could not send. Please try again.'; msg.className = 'song-msg bad'; }
+        })
+        .withFailureHandler(function () { busySong = false; $('songBtn').disabled = false; msg.textContent = 'No connection. Please try again.'; msg.className = 'song-msg bad'; })
+        .requestSong(BOOT.token, song);
+    });
+  }
+
   function setClosed(closed) {
     $('closedNote').hidden = !closed;
     Array.prototype.forEach.call(form.elements, function (el) { el.disabled = closed; });
@@ -574,6 +666,7 @@ function startInvite(BOOT) {
   show('viewForm');
   fillForm(invite);
   setClosed(!BOOT.rsvpOpen);
+  setupSongs();
 
   function showError(msg) { var e = $('formError'); e.textContent = msg; e.hidden = !msg; }
   function newRequestId() {
