@@ -119,10 +119,15 @@ Object.defineProperty(window.google.script, 'run', { get: function () {
     radial-gradient(circle, var(--wine) 0 1.1cqw, transparent 1.2cqw) center / 2.4cqw 2.4cqw no-repeat,
     linear-gradient(var(--wine), var(--wine)) left center / 40% 1px no-repeat,
     linear-gradient(var(--wine), var(--wine)) right center / 40% 1px no-repeat; opacity: .8; }
-  .gate-btn { pointer-events: none; cursor: default; position: absolute; left: 27.3%; width: 45.4%; top: 84.1%; height: 6.3%; border: 0; border-radius: 999px; cursor: pointer;
-    background: linear-gradient(180deg, #8c2438, #5b1222); border: .45cqw solid #d8b263; color: #f7e8c9; box-shadow: 0 1cqw 3cqw rgba(60,10,20,.45);
-    font-family: var(--caps); font-size: 2.7cqw; letter-spacing: .24em; text-transform: uppercase; transition: box-shadow .3s ease, opacity .4s ease; }
-  .gate-btn:hover, .gate-btn:focus-visible { box-shadow: 0 0 0 2px rgba(232,200,120,.9), 0 0 24px rgba(232,200,120,.6); outline: none; }
+  .gate-btn { pointer-events: none; position: absolute; left: 22%; width: 56%; top: 83.6%; height: 7.4%; border: 0; padding: 0; margin: 0;
+    background: none; color: var(--wine); font-family: var(--script); font-size: 7.6cqw; line-height: 1; text-shadow: 0 0 2cqw rgba(255,240,225,.9);
+    transition: opacity .4s ease; }
+  .floorpatch { position: absolute; left: 22%; width: 56%; top: 83.9%; height: 7.2%; background: var(--gateimg, none) no-repeat;
+    background-size: 100cqw 192cqw; background-position: -22cqw -182.4cqw; filter: blur(.4cqw) brightness(.9) saturate(1.2);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent), linear-gradient(180deg, transparent, #000 5%, #000 95%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent), linear-gradient(180deg, transparent, #000 5%, #000 95%, transparent);
+    mask-composite: intersect; }
 
   /* ================= CARD ================= */
   .card {
@@ -232,7 +237,8 @@ Object.defineProperty(window.google.script, 'run', { get: function () {
 
   .boot-loader { display: none; }
   body.booting .page { visibility: hidden; }
-  body.booting .boot-loader { display: flex; position: fixed; inset: 0; z-index: 60; align-items: center; justify-content: center; flex-direction: column; gap: 14px; color: var(--gold-light); font-family: var(--script); font-size: 2rem; }
+  body.booting .boot-loader { display: flex; position: fixed; left: 0; right: 0; bottom: 3%; z-index: 60; justify-content: center; }
+  body.booting .knock { pointer-events: none; }
   body.booting .boot-loader .spinner { width: 26px; height: 26px; color: var(--gold); }
 
   @media (max-width: 370px) {
@@ -278,13 +284,14 @@ Object.defineProperty(window.google.script, 'run', { get: function () {
   </defs>
 </svg>
 
-<div class="boot-loader" aria-live="polite"><span class="spinner"></span>Mayar &amp; Mohamed</div>
+<div class="boot-loader" aria-live="polite" aria-label="Loading"><span class="spinner"></span></div>
 <div class="bg" id="bg" aria-hidden="true"></div>
 
 <!-- ======== The palace gates ======== -->
 <div class="gate" id="gate" role="dialog" aria-label="Welcome">
   <div class="gate-bg" aria-hidden="true"></div>
   <div class="scene">
+    <div class="floorpatch" aria-hidden="true"></div>
     <div class="doors" aria-hidden="true"><div class="leaf l"></div><div class="leaf r"></div></div>
     <button class="knock" type="button" id="knock">Open the Gates</button>
     <div class="sky">
@@ -483,7 +490,6 @@ function startInvite(BOOT) {
   if (invite) { $('gateTop').textContent = 'Reserved for'; $('gateName').textContent = invite.name; }
   else { $('gateTop').textContent = 'You are invited to the wedding of'; $('gateName').textContent = ev.coupleNames || ''; }
   $('gateName').classList.toggle('long', ($('gateName').textContent || '').length > 18);
-  $('openGate').textContent = ev.prettyDate || ev.dateText || '';
 
   /* ----- countdown ----- */
   if (ev.showCountdown && ev.epoch) {
